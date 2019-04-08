@@ -1,0 +1,505 @@
+SQL> --1. Identify the make and model of the car that has sold the most
+SQL> 
+SQL> SELECT Make,Model,CarCount
+  2  FROM ( SELECT Make,Model,COUNT(VIN) as CarCount
+  3  	   FROM F17_T21_SaleDetails NATURAL JOIN F17_T21_Car
+  4  	   GROUP BY Make,Model )
+  5  WHERE CarCount = ( SELECT MAX(COUNT(VIN))
+  6  				   FROM F17_T21_SaleDetails NATURAL JOIN F17_T21_Car
+  7  				   GROUP BY Make,Model )
+  8  ORDER BY Make asc ;
+
+MAKE                 MODEL                  CARCOUNT                                                                                                            
+-------------------- -------------------- ----------                                                                                                            
+Mini Cooper          Cooper                        6                                                                                                            
+
+SQL> 
+SQL> --2. Identify the cities where more than 20 customers are from
+SQL> 
+SQL> SELECT City, COUNT(City) as CityCount
+  2  FROM F17_T21_Customer
+  3  GROUP BY City
+  4  HAVING COUNT(CITY) > 20
+  5  ORDER BY CityCount asc ;
+
+CITY               CITYCOUNT                                                                                                                                    
+----------------- ----------                                                                                                                                    
+carrollton                21                                                                                                                                    
+Irving                    22                                                                                                                                    
+Arlington                 22                                                                                                                                    
+Dallas                    25                                                                                                                                    
+Houston                   31                                                                                                                                    
+
+SQL> --3. Identify eployee with lowest average customer satisfaction rating
+SQL> 
+SQL> SELECT EId, AvgRating
+  2  FROM ( SELECT EId,AVG(CustomerRating) as AvgRating
+  3  	   FROM F17_T21_SaleDetails NATURAL JOIN F17_T21_Employee
+  4  	   GROUP BY EId )
+  5  WHERE AvgRating = ( SELECT MIN(AVG(CustomerRating))
+  6  					FROM F17_T21_SaleDetails NATURAL JOIN F17_T21_Employee
+  7  					GROUP BY EId )
+  8  ORDER BY EId asc ;
+
+EID      AVGRATING                                                                                                                                              
+------- ----------                                                                                                                                              
+Emp009         1.5                                                                                                                                              
+
+SQL> --4. Calculate the total cost that is spent on servicing cars that are under warranty
+SQL> 
+SQL> SELECT SUM(Service_Cost) as Total_ServiceCost
+  2  FROM F17_T21_ServiceDetails
+  3  WHERE Service_Type = 'Warranty' ;
+
+TOTAL_SERVICECOST                                                                                                                                               
+-----------------                                                                                                                                               
+            17400                                                                                                                                               
+
+SQL> --5. Generate list of cars that are still under warranty, and the name and email address of the customer it belongs to
+SQL> 
+SQL> SELECT Warranty_End_Date,F17_T21_Car.Make, F17_T21_Car.Model, F17_T21_Customer.FirstName,
+  2         F17_T21_Customer.LastName, F17_T21_Customer.EmailID
+  3  FROM F17_T21_SaleDetails Join F17_T21_Customer on F17_T21_SaleDetails.CustomerID = F17_T21_Customer.CustomerID
+  4       Join F17_T21_Car on F17_T21_SaleDetails.VIN = F17_T21_Car.VIN
+  5  WHERE Warranty_End_Date > sysdate ;
+
+WARRANTY_ MAKE                 MODEL                FIRSTNAME          LASTNAME            EMAILID                                                              
+--------- -------------------- -------------------- ------------------ ------------------- --------------------------------------                               
+13-FEB-18 Ford                 Mustang              Ryan               Harris              RyanHarris@hexa.org                                                  
+26-NOV-17 Honda                Civic                Travis             Head                TravisHead@zoho.com                                                  
+19-JAN-18 Ford                 Taurus               Najibullah         Zadran              NajibullahZadran@hotmail.com                                         
+
+SQL> --6. Identify the dealer location that has made the most money in the given date range i.e., '01-NOV-2014' and '30-DEC-2014'
+SQL> 
+SQL> SELECT Location
+  2  FROM F17_T21_Dealer
+  3  WHERE DealerId = (
+  4  	SELECT Dealer_Id
+  5  	FROM F17_T21_Employee join F17_T21_SaleDetails on F17_T21_Employee.EID = F17_T21_SaleDetails.EId
+  6  	WHERE F17_T21_Employee.EID  in (
+  7  		SELECT Sales_ID
+  8  		FROM (
+  9  			SELECT F17_T21_SaleDetails.EId as Sales_ID,SellingPrice,
+ 10  				   BuyingPrice, Refurbish_Cost, SellingPrice -
+ 11  				   BuyingPrice - Refurbish_Cost as Profit
+ 12  			FROM F17_T21_SaleDetails INNER JOIN F17_T21_BuyDetails
+ 13  				   on F17_T21_SaleDetails.VIN = F17_T21_BuyDetails.VIN
+ 14  			       JOIN F17_T21_RefurbishDetails
+ 15  				   on F17_T21_BuyDetails.VIN = F17_T21_RefurbishDetails.VIN
+ 16  			       AND sellingdate BETWEEN '01-NOV-2014' AND '30-DEC-2014'
+ 17  			)
+ 18  		WHERE Profit =
+ 19  			( SELECT MAX(SellingPrice - BuyingPrice - Refurbish_Cost)
+ 20  			  FROM F17_T21_SaleDetails
+ 21  			  INNER JOIN F17_T21_BuyDetails on F17_T21_SaleDetails.VIN = F17_T21_BuyDetails.VIN
+ 22  			  JOIN F17_T21_RefurbishDetails on F17_T21_BuyDetails.VIN =
+ 23                     F17_T21_RefurbishDetails.VIN
+ 24  		      AND sellingdate BETWEEN '01-NOV-2014' AND '30-DEC-2014')
+ 25  					));
+
+LOCATION                                                                                                                                                        
+--------------------                                                                                                                                            
+Austin                                                                                                                                                          
+
+SQL> --7. Identify the month that has the maximum car sales in a given year,e.g. 2008
+SQL> 
+SQL> 
+SQL> SELECT Year, Month, MaxSales
+  2  FROM ( SELECT EXTRACT(year from SellingDate)as Year,
+  3  			  EXTRACT(month from SellingDate)as Month,
+  4  			  COUNT(EXTRACT(month from SellingDate)) as MaxSales
+  5         FROM F17_T21_SaleDetails
+  6         WHERE EXTRACT(year from SellingDate)='2008'
+  7         GROUP BY EXTRACT(year from SellingDate),
+  8                  EXTRACT(month from SellingDate)
+  9  )
+ 10  WHERE MaxSales =( SELECT MAX(COUNT(EXTRACT(month from SellingDate)))
+ 11                    FROM F17_T21_SaleDetails
+ 12                    WHERE EXTRACT(year from SellingDate)='2008'
+ 13                    GROUP BY EXTRACT(month from SellingDate)
+ 14  				)
+ 15  ORDER BY Month asc;
+
+      YEAR      MONTH   MAXSALES                                                                                                                                
+---------- ---------- ----------                                                                                                                                
+      2008          9          3                                                                                                                                
+
+SQL> --8. Calculate the commission that should be paid to each sales employee for a particular month, e.g. March 2014
+SQL> 
+SQL> SELECT Sales_ID, SUM(Profit), 0.25 * SUM(PROFIT) as Commission
+  2  FROM
+  3      ( SELECT SellingDate, F17_T21_SaleDetails.EId as Sales_ID,SellingPrice,
+  4               BuyingPrice, Refurbish_Cost, SellingPrice - BuyingPrice -
+  5               Refurbish_Cost as Profit
+  6  	  FROM F17_T21_SaleDetails INNER JOIN F17_T21_BuyDetails
+  7             on F17_T21_SaleDetails.VIN = F17_T21_BuyDetails.VIN
+  8  	       JOIN F17_T21_RefurbishDetails on F17_T21_BuyDetails.VIN = F17_T21_RefurbishDetails.VIN
+  9  	  WHERE SellingDate BETWEEN '01-MAR-2014' AND '01-APR-2014'
+ 10       )
+ 11  GROUP BY Sales_ID
+ 12  ORDER BY Sales_ID asc;
+
+SALES_I SUM(PROFIT) COMMISSION                                                                                                                                  
+------- ----------- ----------                                                                                                                                  
+Emp002        10625    2656.25                                                                                                                                  
+Emp008         7321    1830.25                                                                                                                                  
+Emp073         9702     2425.5                                                                                                                                  
+
+SQL> --9. List all sales employees with their total number of sales
+SQL> 
+SQL> SELECT EId, FirstName, LastName,
+  2  	( SELECT COUNT(F17_T21_SaleDetails.EId)
+  3  	  FROM F17_T21_SaleDetails
+  4  	  WHERE F17_T21_SaleDetails.EId = F17_T21_Employee.EId ) as SalesCount
+  5  FROM F17_T21_Employee
+  6  WHERE EId < 'Emp081';
+
+EID     FIRSTNAME       LASTNAME        SALESCOUNT                                                                                                              
+------- --------------- --------------- ----------                                                                                                              
+Emp001  Habibul         Bashar                   7                                                                                                              
+Emp002  Hafizur         Rahman                   5                                                                                                              
+Emp003  Hannan          Sarkar                   4                                                                                                              
+Emp004  Harunur         Rashid                   2                                                                                                              
+Emp005  Hasibul         Hossain                  2                                                                                                              
+Emp006  Imrul           Kayes                    2                                                                                                              
+Emp007  Jahangir        Alam                     2                                                                                                              
+Emp008  Jahangir        Shah                     2                                                                                                              
+Emp009  Jahurul         Islam                    2                                                                                                              
+Emp010  Jamaluddin      Ahmed                    2                                                                                                              
+Emp011  Javed           Omar                     1                                                                                                              
+
+EID     FIRSTNAME       LASTNAME        SALESCOUNT                                                                                                              
+------- --------------- --------------- ----------                                                                                                              
+Emp012  Jubair          Hossain                  1                                                                                                              
+Emp013  Junaid          Siddique                 1                                                                                                              
+Emp014  Khaled          Mahmud                   1                                                                                                              
+Emp015  Khaled          Mashud                   1                                                                                                              
+Emp016  Liton           Das                      1                                                                                                              
+Emp017  Mafizur         Rahman                   1                                                                                                              
+Emp018  Mahbubur        Rahman                   1                                                                                                              
+Emp019  Mahbubul        Alam                     1                                                                                                              
+Emp020  Manjural        Islam                    1                                                                                                              
+Emp021  Mohammad        Mithun                   1                                                                                                              
+Emp022  Mohammad        Saifuddin                1                                                                                                              
+
+EID     FIRSTNAME       LASTNAME        SALESCOUNT                                                                                                              
+------- --------------- --------------- ----------                                                                                                              
+Emp023  Mashrafe        Mortaza                  1                                                                                                              
+Emp024  Mazharul        Haque                    1                                                                                                              
+Emp025  Mehrab          Hossain                  1                                                                                                              
+Emp026  Minhajul        Abedin                   1                                                                                                              
+Emp027  Mohammad        Ashraful                 1                                                                                                              
+Emp028  Mohammad        Rafique                  1                                                                                                              
+Emp029  Mohammad        Salim                    1                                                                                                              
+Emp030  Mohammad        Sharif                   1                                                                                                              
+Emp031  Mominul         Haque                    1                                                                                                              
+Emp032  Mosharraf       Hossain                  1                                                                                                              
+Emp033  Mushfiqur       Rahim                    1                                                                                                              
+
+EID     FIRSTNAME       LASTNAME        SALESCOUNT                                                                                                              
+------- --------------- --------------- ----------                                                                                                              
+Emp034  Mushfiqur       Rahman                   1                                                                                                              
+Emp035  Abdul           Jabbar                   1                                                                                                              
+Emp036  Ashish          Bagai                    1                                                                                                              
+Emp037  Harvir          Baidwan                  1                                                                                                              
+Emp038  Charles         Baksh                    1                                                                                                              
+Emp039  Balaji          Rao                      1                                                                                                              
+Emp040  Geoff           Barnett                  1                                                                                                              
+Emp041  Trevin          Bastiampillai            1                                                                                                              
+Emp042  Rustam          Bhatti                   1                                                                                                              
+Emp043  Umar            Bhatti                   1                                                                                                              
+Emp044  Ian             Billcliff                1                                                                                                              
+
+EID     FIRSTNAME       LASTNAME        SALESCOUNT                                                                                                              
+------- --------------- --------------- ----------                                                                                                              
+Emp045  Robert          Callender                1                                                                                                              
+Emp046  Christopher     Chappell                 1                                                                                                              
+Emp047  Desmond         Chumney                  1                                                                                                              
+Emp048  Austin          Codrington               1                                                                                                              
+Emp049  George          Codrington               1                                                                                                              
+Emp050  Anderson        Cummins                  1                                                                                                              
+Emp051  Damodar         Daesrath                 1                                                                                                              
+Emp052  Manoj           David                    1                                                                                                              
+Emp053  John            Davison                  1                                                                                                              
+Emp054  Jawad           Dawood                   1                                                                                                              
+Emp055  Franklyn        Dennis                   1                                                                                                              
+
+EID     FIRSTNAME       LASTNAME        SALESCOUNT                                                                                                              
+------- --------------- --------------- ----------                                                                                                              
+Emp056  Parth           Desai                    1                                                                                                              
+Emp057  Sunil           Dhaniram                 1                                                                                                              
+Emp058  Haninder        Dhillon                  1                                                                                                              
+Emp059  Nikhil          Dutta                    1                                                                                                              
+Emp060  Sami            Faridi                   1                                                                                                              
+Emp061  Jeremy          Gordon                   1                                                                                                              
+Emp062  Tyson           Gordon                   1                                                                                                              
+Emp063  Ruvindu         Gunasekera               1                                                                                                              
+Emp064  Hamza           Tariq                    1                                                                                                              
+Emp065  Jimmy           Hansra                   1                                                                                                              
+Emp066  Joseph          Harris                   1                                                                                                              
+
+EID     FIRSTNAME       LASTNAME        SALESCOUNT                                                                                                              
+------- --------------- --------------- ----------                                                                                                              
+Emp067  Stewart         Heaney                   1                                                                                                              
+Emp068  Cornelius       Henry                    1                                                                                                              
+Emp069  Calvert         Hooper                   1                                                                                                              
+Emp070  Nicholas        Ifill                    1                                                                                                              
+Emp071  Karun           Jethi                    1                                                                                                              
+Emp072  Davis           Joseph                   1                                                                                                              
+Emp073  Junaid          Siddiqui                 1                                                                                                              
+Emp074  Sandeep         Jyoti                    1                                                                                                              
+Emp075  Kenneth         Kamyuka                  1                                                                                                              
+Emp076  Arvind          Kandappah                1                                                                                                              
+Emp077  Eion            Katchay                  1                                                                                                              
+
+EID     FIRSTNAME       LASTNAME        SALESCOUNT                                                                                                              
+------- --------------- --------------- ----------                                                                                                              
+Emp078  Shaheed         Keshvani                 1                                                                                                              
+Emp079  Khurram         Chohan                   1                                                                                                              
+Emp080  Nitish          Kumar                    1                                                                                                              
+
+80 rows selected.
+
+SQL> --10. Identify employees making more/less than some number of sales i.e., 2 over a given time range
+SQL> 
+SQL> SELECT FirstName,LastName
+  2  FROM F17_T21_Employee
+  3  WHERE EID in ( SELECT EID
+  4  			   FROM F17_T21_SaleDetails
+  5  			   WHERE SellingDate BETWEEN '01-Jan-2011' AND '30-DEC-2014'
+  6  			   GROUP BY EID
+  7  			   HAVING count(EID)>2 );
+
+FIRSTNAME       LASTNAME                                                                                                                                        
+--------------- ---------------                                                                                                                                 
+Hafizur         Rahman                                                                                                                                          
+
+SQL> --11. Generate list of how many times each sales employee has received a particular rating
+SQL> 
+SQL> SELECT EId, CustomerRating, COUNT(VIN) as Number_of_sales
+  2  FROM F17_T21_SaleDetails
+  3  GROUP BY ROLLUP(EId, CustomerRating);
+
+EID     CUSTOMERRATING NUMBER_OF_SALES                                                                                                                          
+------- -------------- ---------------                                                                                                                          
+Emp001               3               2                                                                                                                          
+Emp001               4               4                                                                                                                          
+Emp001               5               1                                                                                                                          
+Emp001                               7                                                                                                                          
+Emp002               3               2                                                                                                                          
+Emp002               4               1                                                                                                                          
+Emp002               5               2                                                                                                                          
+Emp002                               5                                                                                                                          
+Emp003               2               3                                                                                                                          
+Emp003               4               1                                                                                                                          
+Emp003                               4                                                                                                                          
+
+EID     CUSTOMERRATING NUMBER_OF_SALES                                                                                                                          
+------- -------------- ---------------                                                                                                                          
+Emp004               2               1                                                                                                                          
+Emp004               3               1                                                                                                                          
+Emp004                               2                                                                                                                          
+Emp005               3               1                                                                                                                          
+Emp005               4               1                                                                                                                          
+Emp005                               2                                                                                                                          
+Emp006               2               1                                                                                                                          
+Emp006               5               1                                                                                                                          
+Emp006                               2                                                                                                                          
+Emp007               2               1                                                                                                                          
+Emp007               3               1                                                                                                                          
+
+EID     CUSTOMERRATING NUMBER_OF_SALES                                                                                                                          
+------- -------------- ---------------                                                                                                                          
+Emp007                               2                                                                                                                          
+Emp008               4               2                                                                                                                          
+Emp008                               2                                                                                                                          
+Emp009               1               1                                                                                                                          
+Emp009               2               1                                                                                                                          
+Emp009                               2                                                                                                                          
+Emp010               3               2                                                                                                                          
+Emp010                               2                                                                                                                          
+Emp011               2               1                                                                                                                          
+Emp011                               1                                                                                                                          
+Emp012               4               1                                                                                                                          
+
+EID     CUSTOMERRATING NUMBER_OF_SALES                                                                                                                          
+------- -------------- ---------------                                                                                                                          
+Emp012                               1                                                                                                                          
+Emp013               4               1                                                                                                                          
+Emp013                               1                                                                                                                          
+Emp014               4               1                                                                                                                          
+Emp014                               1                                                                                                                          
+Emp015               4               1                                                                                                                          
+Emp015                               1                                                                                                                          
+Emp016               3               1                                                                                                                          
+Emp016                               1                                                                                                                          
+Emp017               3               1                                                                                                                          
+Emp017                               1                                                                                                                          
+
+EID     CUSTOMERRATING NUMBER_OF_SALES                                                                                                                          
+------- -------------- ---------------                                                                                                                          
+Emp018               2               1                                                                                                                          
+Emp018                               1                                                                                                                          
+Emp019               3               1                                                                                                                          
+Emp019                               1                                                                                                                          
+Emp020               4               1                                                                                                                          
+Emp020                               1                                                                                                                          
+Emp021               2               1                                                                                                                          
+Emp021                               1                                                                                                                          
+Emp022               3               1                                                                                                                          
+Emp022                               1                                                                                                                          
+Emp023               4               1                                                                                                                          
+
+EID     CUSTOMERRATING NUMBER_OF_SALES                                                                                                                          
+------- -------------- ---------------                                                                                                                          
+Emp023                               1                                                                                                                          
+Emp024               3               1                                                                                                                          
+Emp024                               1                                                                                                                          
+Emp025               4               1                                                                                                                          
+Emp025                               1                                                                                                                          
+Emp026               3               1                                                                                                                          
+Emp026                               1                                                                                                                          
+Emp027               2               1                                                                                                                          
+Emp027                               1                                                                                                                          
+Emp028               4               1                                                                                                                          
+Emp028                               1                                                                                                                          
+
+EID     CUSTOMERRATING NUMBER_OF_SALES                                                                                                                          
+------- -------------- ---------------                                                                                                                          
+Emp029               3               1                                                                                                                          
+Emp029                               1                                                                                                                          
+Emp030               4               1                                                                                                                          
+Emp030                               1                                                                                                                          
+Emp031               4               1                                                                                                                          
+Emp031                               1                                                                                                                          
+Emp032               3               1                                                                                                                          
+Emp032                               1                                                                                                                          
+Emp033               2               1                                                                                                                          
+Emp033                               1                                                                                                                          
+Emp034               2               1                                                                                                                          
+
+EID     CUSTOMERRATING NUMBER_OF_SALES                                                                                                                          
+------- -------------- ---------------                                                                                                                          
+Emp034                               1                                                                                                                          
+Emp035               2               1                                                                                                                          
+Emp035                               1                                                                                                                          
+Emp036               2               1                                                                                                                          
+Emp036                               1                                                                                                                          
+Emp037               3               1                                                                                                                          
+Emp037                               1                                                                                                                          
+Emp038               3               1                                                                                                                          
+Emp038                               1                                                                                                                          
+Emp039               3               1                                                                                                                          
+Emp039                               1                                                                                                                          
+
+EID     CUSTOMERRATING NUMBER_OF_SALES                                                                                                                          
+------- -------------- ---------------                                                                                                                          
+Emp040               3               1                                                                                                                          
+Emp040                               1                                                                                                                          
+Emp041               3               1                                                                                                                          
+Emp041                               1                                                                                                                          
+Emp042               3               1                                                                                                                          
+Emp042                               1                                                                                                                          
+Emp043               2               1                                                                                                                          
+Emp043                               1                                                                                                                          
+Emp044               4               1                                                                                                                          
+Emp044                               1                                                                                                                          
+Emp045               2               1                                                                                                                          
+
+EID     CUSTOMERRATING NUMBER_OF_SALES                                                                                                                          
+------- -------------- ---------------                                                                                                                          
+Emp045                               1                                                                                                                          
+Emp046               4               1                                                                                                                          
+Emp046                               1                                                                                                                          
+Emp047               3               1                                                                                                                          
+Emp047                               1                                                                                                                          
+Emp048               2               1                                                                                                                          
+Emp048                               1                                                                                                                          
+Emp049               4               1                                                                                                                          
+Emp049                               1                                                                                                                          
+Emp050               4               1                                                                                                                          
+Emp050                               1                                                                                                                          
+
+EID     CUSTOMERRATING NUMBER_OF_SALES                                                                                                                          
+------- -------------- ---------------                                                                                                                          
+Emp051               4               1                                                                                                                          
+Emp051                               1                                                                                                                          
+Emp052               2               1                                                                                                                          
+Emp052                               1                                                                                                                          
+Emp053               2               1                                                                                                                          
+Emp053                               1                                                                                                                          
+Emp054               4               1                                                                                                                          
+Emp054                               1                                                                                                                          
+Emp055               3               1                                                                                                                          
+Emp055                               1                                                                                                                          
+Emp056               3               1                                                                                                                          
+
+EID     CUSTOMERRATING NUMBER_OF_SALES                                                                                                                          
+------- -------------- ---------------                                                                                                                          
+Emp056                               1                                                                                                                          
+Emp057               4               1                                                                                                                          
+Emp057                               1                                                                                                                          
+Emp058               4               1                                                                                                                          
+Emp058                               1                                                                                                                          
+Emp059               3               1                                                                                                                          
+Emp059                               1                                                                                                                          
+Emp060               3               1                                                                                                                          
+Emp060                               1                                                                                                                          
+Emp061               4               1                                                                                                                          
+Emp061                               1                                                                                                                          
+
+EID     CUSTOMERRATING NUMBER_OF_SALES                                                                                                                          
+------- -------------- ---------------                                                                                                                          
+Emp062               4               1                                                                                                                          
+Emp062                               1                                                                                                                          
+Emp063               3               1                                                                                                                          
+Emp063                               1                                                                                                                          
+Emp064               3               1                                                                                                                          
+Emp064                               1                                                                                                                          
+Emp065               3               1                                                                                                                          
+Emp065                               1                                                                                                                          
+Emp066               2               1                                                                                                                          
+Emp066                               1                                                                                                                          
+Emp067               4               1                                                                                                                          
+
+EID     CUSTOMERRATING NUMBER_OF_SALES                                                                                                                          
+------- -------------- ---------------                                                                                                                          
+Emp067                               1                                                                                                                          
+Emp068               2               1                                                                                                                          
+Emp068                               1                                                                                                                          
+Emp069               4               1                                                                                                                          
+Emp069                               1                                                                                                                          
+Emp070               3               1                                                                                                                          
+Emp070                               1                                                                                                                          
+Emp071               4               1                                                                                                                          
+Emp071                               1                                                                                                                          
+Emp072               2               1                                                                                                                          
+Emp072                               1                                                                                                                          
+
+EID     CUSTOMERRATING NUMBER_OF_SALES                                                                                                                          
+------- -------------- ---------------                                                                                                                          
+Emp073               2               1                                                                                                                          
+Emp073                               1                                                                                                                          
+Emp074               4               1                                                                                                                          
+Emp074                               1                                                                                                                          
+Emp075               4               1                                                                                                                          
+Emp075                               1                                                                                                                          
+Emp076               3               1                                                                                                                          
+Emp076                               1                                                                                                                          
+Emp077               4               1                                                                                                                          
+Emp077                               1                                                                                                                          
+Emp078               3               1                                                                                                                          
+
+EID     CUSTOMERRATING NUMBER_OF_SALES                                                                                                                          
+------- -------------- ---------------                                                                                                                          
+Emp078                               1                                                                                                                          
+Emp079               2               1                                                                                                                          
+Emp079                               1                                                                                                                          
+Emp080               4               1                                                                                                                          
+Emp080                               1                                                                                                                          
+                                   100                                                                                                                          
+
+171 rows selected.
+
+SQL> 
+SQL> spool off

@@ -1,0 +1,93 @@
+SQL> --1. Identify the make and model of the car that has sold the most
+SQL> 
+SQL> SELECT Make,Model,CarCount
+  2  FROM ( SELECT Make,Model,COUNT(VIN) as CarCount
+  3  	   FROM F17_T21_SaleDetails NATURAL JOIN F17_T21_Car
+  4  	   GROUP BY Make,Model )
+  5  WHERE CarCount = ( SELECT MAX(COUNT(VIN))
+  6  				   FROM F17_T21_SaleDetails NATURAL JOIN F17_T21_Car
+  7  				   GROUP BY Make,Model )
+  8  ORDER BY Make asc ;
+
+MAKE                 MODEL                  CARCOUNT                                                                                                            
+-------------------- -------------------- ----------                                                                                                            
+Mini Cooper          Cooper                        7                                                                                                            
+
+SQL> --2. Identify the cities where more than 20 customers are from
+SQL> 
+SQL> SELECT City, COUNT(City) as CityCount
+  2  FROM F17_T21_Customer
+  3  GROUP BY City
+  4  HAVING COUNT(CITY) > 20
+  5  ORDER BY CityCount asc ;
+
+CITY               CITYCOUNT                                                                                                                                    
+----------------- ----------                                                                                                                                    
+carrollton                21                                                                                                                                    
+Irving                    22                                                                                                                                    
+Arlington                 22                                                                                                                                    
+Dallas                    25                                                                                                                                    
+Houston                   31                                                                                                                                    
+
+SQL> --3. Identify eployee with lowest average customer satisfaction rating
+SQL> 
+SQL> SELECT EId, AvgRating
+  2  FROM ( SELECT EId,AVG(CustomerRating) as AvgRating
+  3  	   FROM F17_T21_SaleDetails NATURAL JOIN F17_T21_Employee
+  4  	   GROUP BY EId )
+  5  WHERE AvgRating = ( SELECT MIN(AVG(CustomerRating))
+  6  					FROM F17_T21_SaleDetails NATURAL JOIN F17_T21_Employee
+  7  					GROUP BY EId )
+  8  ORDER BY EId asc ;
+
+EID      AVGRATING                                                                                                                                              
+------- ----------                                                                                                                                              
+Emp009  1.33333333                                                                                                                                              
+
+SQL> --8. Calculate the commission that should be paid to each sales employee for a particular month, e.g. March 2014
+SQL> 
+SQL> SELECT Sales_ID, SUM(Profit), 0.25 * SUM(PROFIT) as Commission
+  2  FROM
+  3      ( SELECT SellingDate, F17_T21_SaleDetails.EId as Sales_ID,SellingPrice,
+  4               BuyingPrice, Refurbish_Cost, SellingPrice - BuyingPrice -
+  5               Refurbish_Cost as Profit
+  6  	  FROM F17_T21_SaleDetails INNER JOIN F17_T21_BuyDetails
+  7             on F17_T21_SaleDetails.VIN = F17_T21_BuyDetails.VIN
+  8  	       JOIN F17_T21_RefurbishDetails on F17_T21_BuyDetails.VIN = F17_T21_RefurbishDetails.VIN
+  9  	  WHERE SellingDate BETWEEN '01-MAR-2014' AND '01-APR-2014'
+ 10       )
+ 11  GROUP BY Sales_ID
+ 12  ORDER BY Sales_ID asc;
+
+SALES_I SUM(PROFIT) COMMISSION                                                                                                                                  
+------- ----------- ----------                                                                                                                                  
+Emp002        10625    2656.25                                                                                                                                  
+Emp008         7321    1830.25                                                                                                                                  
+Emp009        10000       2500                                                                                                                                  
+Emp073         9702     2425.5                                                                                                                                  
+
+SQL> --5. Generate list of cars that are still under warranty, and the name and email address of the customer it belongs to
+SQL> 
+SQL> SELECT Warranty_End_Date,F17_T21_Car.Make, F17_T21_Car.Model, F17_T21_Customer.FirstName,
+  2         F17_T21_Customer.LastName, F17_T21_Customer.EmailID
+  3  FROM F17_T21_SaleDetails Join F17_T21_Customer on F17_T21_SaleDetails.CustomerID = F17_T21_Customer.CustomerID
+  4       Join F17_T21_Car on F17_T21_SaleDetails.VIN = F17_T21_Car.VIN
+  5  WHERE Warranty_End_Date > sysdate ;
+
+WARRANTY_ MAKE                 MODEL                FIRSTNAME          LASTNAME            EMAILID                                                              
+--------- -------------------- -------------------- ------------------ ------------------- --------------------------------------                               
+13-FEB-18 Ford                 Mustang              Nathan             Huang               RyanHarris@hexa.org                                                  
+26-NOV-17 Honda                Civic                Priyanka           Murthy              TravisHead@zoho.com                                                  
+19-JAN-18 Ford                 Taurus               Sriranga           Ramakrishna         NajibullahZadran@hotmail.com                                         
+
+SQL> --4. Calculate the total cost that is spent on servicing cars that are under warranty
+SQL> 
+SQL> SELECT SUM(Service_Cost) as Total_ServiceCost
+  2  FROM F17_T21_ServiceDetails
+  3  WHERE Service_Type = 'Warranty' ;
+
+TOTAL_SERVICECOST                                                                                                                                               
+-----------------                                                                                                                                               
+            16720                     
+
+SQL> spool off

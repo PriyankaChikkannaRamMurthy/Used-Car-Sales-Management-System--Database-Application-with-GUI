@@ -1,0 +1,9 @@
+DROP TABLE F17_T21_BuyDetails;
+DROP TABLE F17_T21_SaleDetails;
+DROP TABLE F17_T21_RefurbishDetails;
+DROP TABLE F17_T21_ServiceDetails;
+DROP TABLE F17_T21_Car;
+DROP TABLE F17_T21_Customer;
+DROP TABLE F17_T21_Employee;
+DROP TABLE F17_T21_Dealer;
+PURGE recyclebin;
